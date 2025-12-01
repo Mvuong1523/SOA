@@ -2,10 +2,9 @@
 
 Hệ thống đặt hàng trực tuyến sử dụng kiến trúc microservices với FastAPI, PostgreSQL, React + Tailwind CSS, và Nginx gateway.
 
-## Team
-- Nguyen Tran Dat - B21DCCN216
-- Duong Thi Hong Ngat - B21DCCN564
-- Bui Thanh Dinh - B21DCCN228
+## 
+
+- Lê Minh Vương - B21DCCN802
 
 ## Tech Stack
 - **Backend**: Python FastAPI
