@@ -1,0 +1,275 @@
+version: "3.8"
+
+services:
+  # Separate database for each service
+  postgres-auth:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+      POSTGRES_DB: auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+      - ./scripts/init-auth-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-customer:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: customeruser
+      POSTGRES_PASSWORD: customerpass
+      POSTGRES_DB: customer_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_customer_data:/var/lib/postgresql/data
+      - ./scripts/init-customer-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U customeruser -d customer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-product:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: productuser
+      POSTGRES_PASSWORD: productpass
+      POSTGRES_DB: product_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_product_data:/var/lib/postgresql/data
+      - ./scripts/init-product-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U productuser -d product_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-cart:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: cartuser
+      POSTGRES_PASSWORD: cartpass
+      POSTGRES_DB: cart_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_cart_data:/var/lib/postgresql/data
+      - ./scripts/init-cart-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cartuser -d cart_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-order:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: orderuser
+      POSTGRES_PASSWORD: orderpass
+      POSTGRES_DB: order_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_order_data:/var/lib/postgresql/data
+      - ./scripts/init-order-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderuser -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./services/auth-service
+    env_file:
+      - .env
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-devsecret}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      DATABASE_URL: postgresql://authuser:authpass@postgres-auth:5432/auth_db
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+  product-service:
+    build: ./services/product-service
+    environment:
+      DATABASE_URL: postgresql://productuser:productpass@postgres-product:5432/product_db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-devsecret}
+      ALGORITHM: ${ALGORITHM:-HS256}
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+
+  customer-service:
+    build: ./services/customer-service
+    environment:
+      DATABASE_URL: postgresql://customeruser:customerpass@postgres-customer:5432/customer_db
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres-customer:
+        condition: service_healthy
+
+  cart-service:
+    build: ./services/cart-service
+    environment:
+      DATABASE_URL: postgresql://cartuser:cartpass@postgres-cart:5432/cart_db
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres-cart:
+        condition: service_healthy
+
+  order-service:
+    build: ./services/order-service
+    environment:
+      DATABASE_URL: postgresql://orderuser:orderpass@postgres-order:5432/order_db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-devsecret}
+      ALGORITHM: ${ALGORITHM:-HS256}
+    ports:
+      - "8005:8005"
+    depends_on:
+      postgres-order:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"   # AMQP protocol
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-service:
+    build: ./services/notification-service
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+    ports:
+      - "8006:8006"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  make-order-service:
+    build: ./services/make-order-service
+    environment:
+      AUTH_URL: http://auth-service:8001
+      CUSTOMER_URL: http://customer-service:8003
+      PRODUCT_URL: http://product-service:8002
+      ORDER_URL: http://order-service:8005
+      NOTIF_URL: http://notification-service:8006
+      CART_URL: http://cart-service:8004
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+    ports:
+      - "8007:8007"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      customer-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      cart-service:
+        condition: service_started
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "8080:8000"
+    depends_on:
+      - auth-service
+      - product-service
+      - customer-service
+      - cart-service
+      - order-service
+      - notification-service
+      - make-order-service
+
+  # Micro-frontends - Each service has its own UI
+  product-frontend:
+    build: ./services/product-service/frontend
+    ports:
+      - "3002:3002"
+    environment:
+      VITE_API_BASE: http://localhost:8002
+    volumes:
+      - ./services/product-service/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - product-service
+
+  cart-frontend:
+    build: ./services/cart-service/frontend
+    ports:
+      - "3004:3004"
+    environment:
+      VITE_CART_API: http://localhost:8004
+      VITE_PRODUCT_API: http://localhost:8002
+    volumes:
+      - ./services/cart-service/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - cart-service
+      - product-service
+
+  order-frontend:
+    build: ./services/order-service/frontend
+    ports:
+      - "3005:3005"
+    environment:
+      VITE_API_BASE: http://localhost:8005
+    volumes:
+      - ./services/order-service/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - order-service
+
+  # Main frontend (orchestrator)
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE: http://localhost:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_auth_data:
+  postgres_customer_data:
+  postgres_product_data:
+  postgres_cart_data:
+  postgres_order_data:
+  rabbitmq_data:

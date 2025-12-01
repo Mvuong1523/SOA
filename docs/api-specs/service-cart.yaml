@@ -1,0 +1,140 @@
+openapi: 3.0.0
+info:
+  title: Cart Service API
+  version: 1.0.0
+  description: RESTful API for managing shopping cart
+
+paths:
+  /customers/{customer_id}/cart:
+    get:
+      summary: Get customer's shopping cart
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart items retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItemResponse'
+    
+    post:
+      summary: Add item to cart
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItem'
+      responses:
+        '201':
+          description: Item added to cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemResponse'
+    
+    delete:
+      summary: Clear entire cart
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart cleared successfully
+
+  /customers/{customer_id}/cart/{product_id}:
+    put:
+      summary: Update cart item quantity
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItem'
+      responses:
+        '200':
+          description: Cart item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemResponse'
+        '404':
+          description: Item not found in cart
+    
+    delete:
+      summary: Remove item from cart
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Item removed from cart
+        '404':
+          description: Item not found in cart
+
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+
+components:
+  schemas:
+    CartItem:
+      type: object
+      required:
+        - product_id
+        - quantity
+      properties:
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+    
+    CartItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        customer_id:
+          type: string
+        product_id:
+          type: integer
+        quantity:
+          type: integer

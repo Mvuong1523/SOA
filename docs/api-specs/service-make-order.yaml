@@ -1,0 +1,93 @@
+openapi: 3.0.0
+info:
+  title: Make Order Service API
+  version: 1.0.0
+  description: Task service for orchestrating the order placement process
+
+paths:
+  /ordering:
+    post:
+      summary: Place an order
+      description: |
+        Orchestrates the complete order placement process:
+        1. Validate JWT token
+        2. Verify customer information
+        3. Check product availability and stock
+        4. Update inventory
+        5. Create order
+        6. Send notification
+        7. Clear shopping cart
+        8. Process payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderingRequest'
+      responses:
+        '200':
+          description: Order placed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  order:
+                    type: object
+                    description: Created order details
+        '400':
+          description: Bad request (insufficient stock, payment failed, etc.)
+        '401':
+          description: Unauthorized (invalid token or customer mismatch)
+        '404':
+          description: Customer or product not found
+
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OrderItem:
+      type: object
+      required:
+        - product_id
+        - quantity
+      properties:
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+    
+    OrderingRequest:
+      type: object
+      required:
+        - customer_id
+        - items
+      properties:
+        customer_id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        note:
+          type: string
+        payment_method:
+          type: string
+          enum: [COD, online]
+          default: COD

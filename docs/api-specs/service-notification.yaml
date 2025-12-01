@@ -1,0 +1,29 @@
+openapi: 3.0.0
+info:
+  title: Notification Service API
+  version: 1.0.0
+paths:
+  /notifications/email:
+    post:
+      summary: Gửi email xác nhận đơn hàng
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailNotification'
+      responses:
+        '200':
+          description: Email đã gửi
+
+components:
+  schemas:
+    EmailNotification:
+      type: object
+      properties:
+        to:
+          type: string
+        subject:
+          type: string
+        content:
+          type: string

@@ -1,0 +1,54 @@
+openapi: 3.0.0
+info:
+  title: Cart and Order Flow API
+  version: 1.0.0
+paths:
+  /cart:
+    get:
+      summary: Lấy danh sách sản phẩm trong giỏ hàng
+      responses:
+        '200':
+          description: Thành công
+
+    post:
+      summary: Thêm sản phẩm vào giỏ hàng
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItem'
+      responses:
+        '201':
+          description: Đã thêm vào giỏ
+
+  /cart/{productId}:
+    delete:
+      summary: Xóa sản phẩm khỏi giỏ hàng
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Đã xóa
+
+  /cart/checkout:
+    post:
+      summary: Bắt đầu quy trình đặt hàng
+      description: Gồm kiểm tra người dùng, kiểm tra sản phẩm, lưu đơn, gửi email...
+      responses:
+        '200':
+          description: Đặt hàng thành công
+
+components:
+  schemas:
+    CartItem:
+      type: object
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
