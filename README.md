@@ -49,9 +49,17 @@ Hệ thống bao gồm 7 microservices chính:
 
 ### 6. Notification Service (Port 8006)
 - `POST /notifications/email` - Gửi email thông báo
+- **Event Consumer**: Lắng nghe `order.created` events từ RabbitMQ
 
 ### 7. Make Order Service (Port 8007)
 - `POST /ordering` - Orchestrate quy trình đặt hàng hoàn chỉnh
+- **Event Publisher**: Publish `order.created` events tới RabbitMQ
+
+### 8. RabbitMQ (Ports 5672, 15672)
+- Message broker cho event-driven communication
+- Management UI: http://localhost:15672
+- Username: `admin` / Password: `admin123`
+- Queue: `order.created` - Thông báo khi có đơn hàng mới
 
 ### Gateway (Port 8080)
 - Nginx reverse proxy cho tất cả services
@@ -86,7 +94,8 @@ docker-compose up --build
 ```
 
 Hệ thống sẽ khởi động:
-- PostgreSQL database với demo data
+- 5 PostgreSQL databases riêng biệt (database per service)
+- RabbitMQ message broker
 - 7 microservices (backend)
 - 4 micro-frontends (UI riêng cho mỗi service)
 - Nginx gateway tại http://localhost:8080
@@ -96,6 +105,7 @@ Hệ thống sẽ khởi động:
 - Product UI: http://localhost:3002 (Quản lý sản phẩm)
 - Cart UI: http://localhost:3004 (Quản lý giỏ hàng)
 - Order UI: http://localhost:3005 (Quản lý đơn hàng)
+- RabbitMQ Management: http://localhost:15672 (admin/admin123)
 
 ### 3. Truy cập ứng dụng
 
@@ -119,20 +129,46 @@ Hệ thống sẽ khởi động:
 - Password: `admin123`
 - Customer ID: `admin`
 
-## Database
+## Database Architecture
 
-PostgreSQL database được tự động khởi tạo với:
-- **Users**: Demo accounts (admin, user)
-- **Customers**: 3 demo customers
-- **Products**: 5 demo products (Laptop, iPhone, iPad, Samsung, MacBook)
-- **Tables**: users, customers, products, orders, order_items, cart_items
+Hệ thống sử dụng **Database per Service** pattern - mỗi microservice có database riêng biệt:
 
-### Database Connection
-- Host: localhost
-- Port: 5432
-- Database: orderdb
-- Username: orderuser
-- Password: orderpass
+### 1. Auth Database (Port 5433)
+- Database: `auth_db`
+- User: `authuser` / Password: `authpass`
+- Tables: `users`
+- Data: Demo accounts (admin, user)
+
+### 2. Customer Database (Port 5434)
+- Database: `customer_db`
+- User: `customeruser` / Password: `customerpass`
+- Tables: `customers`
+- Data: 3 demo customers
+
+### 3. Product Database (Port 5435)
+- Database: `product_db`
+- User: `productuser` / Password: `productpass`
+- Tables: `products`
+- Data: 5 demo products (Laptop, iPhone, iPad, Samsung, MacBook)
+
+### 4. Cart Database (Port 5436)
+- Database: `cart_db`
+- User: `cartuser` / Password: `cartpass`
+- Tables: `cart_items`
+
+### 5. Order Database (Port 5437)
+- Database: `order_db`
+- User: `orderuser` / Password: `orderpass`
+- Tables: `orders`, `order_items`
+
+**Lợi ích của Database per Service:**
+- ✅ Độc lập hoàn toàn giữa các services
+- ✅ Mỗi service tự do chọn database engine phù hợp
+- ✅ Scale database theo nhu cầu từng service
+- ✅ Fault isolation - lỗi database không ảnh hưởng service khác
+- ✅ Tuân thủ nguyên tắc microservices architecture
+
+Chi tiết: Xem [DATABASE_PER_SERVICE.md](DATABASE_PER_SERVICE.md)
 
 ## API Documentation
 
@@ -189,17 +225,27 @@ npm run dev  # http://localhost:3000
 
 ## Order Flow
 
-Luồng đặt hàng hoàn chỉnh qua Make Order Service:
+Luồng đặt hàng hoàn chỉnh qua Make Order Service (Orchestration Pattern):
 
-1. **Validate Token** - Xác thực JWT token
-2. **Verify Customer** - Kiểm tra thông tin khách hàng
-3. **Get Product Info** - Lấy thông tin sản phẩm
-4. **Check Stock** - Kiểm tra tồn kho
-5. **Update Stock** - Trừ tồn kho
-6. **Create Order** - Tạo đơn hàng
-7. **Send Notification** - Gửi email xác nhận
-8. **Clear Cart** - Xóa giỏ hàng
-9. **Process Payment** - Xử lý thanh toán (stub)
+### Synchronous Steps (HTTP API Calls):
+1. **Validate Token** - Xác thực JWT token (Auth Service)
+2. **Verify Customer** - Kiểm tra thông tin khách hàng (Customer Service)
+3. **Get Product Info** - Lấy thông tin sản phẩm (Product Service)
+4. **Check Stock** - Kiểm tra tồn kho (Product Service)
+5. **Update Stock** - Trừ tồn kho (Product Service)
+6. **Create Order** - Tạo đơn hàng (Order Service)
+7. **Clear Cart** - Xóa giỏ hàng (Cart Service)
+8. **Process Payment** - Xử lý thanh toán (stub)
+
+### Asynchronous Steps (RabbitMQ Events):
+9. **Publish Event** - Make Order Service publish `order.created` event tới RabbitMQ
+10. **Send Notification** - Notification Service consume event và gửi thông báo
+
+**Event-Driven Architecture:**
+- Notification service không block order creation
+- Nếu notification service down, order vẫn tạo thành công
+- Message được lưu trong queue cho đến khi được xử lý
+- Dễ dàng thêm consumers khác (SMS, Analytics, etc.)
 
 ## Project Structure
 
@@ -250,11 +296,11 @@ Luồng đặt hàng hoàn chỉnh qua Make Order Service:
 Hệ thống sử dụng kiến trúc **micro-frontends** - mỗi service có UI riêng biệt:
 
 ### Benefits
-- ✅ **Independence**: Mỗi team phát triển UI riêng, không ảnh hưởng lẫn nhau
-- ✅ **Scalability**: Scale frontend theo nhu cầu từng service
-- ✅ **Technology Freedom**: Có thể dùng framework khác nhau
-- ✅ **Fault Isolation**: Lỗi ở một UI không ảnh hưởng UI khác
-- ✅ **Team Autonomy**: Product team → Product UI, Cart team → Cart UI
+-  **Independence**: Mỗi team phát triển UI riêng, không ảnh hưởng lẫn nhau
+-  **Scalability**: Scale frontend theo nhu cầu từng service
+-  **Technology Freedom**: Có thể dùng framework khác nhau
+-  **Fault Isolation**: Lỗi ở một UI không ảnh hưởng UI khác
+-  **Team Autonomy**: Product team → Product UI, Cart team → Cart UI
 
 ### Product Frontend (Port 3002)
 - View all products
@@ -293,15 +339,32 @@ Tất cả APIs tuân theo RESTful conventions:
 
 ## Environment Variables
 
-### Backend Services
+### Backend Services (.env)
 ```env
+# JWT Configuration
 JWT_SECRET_KEY=your_jwt_secret_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-POSTGRES_USER=orderuser
-POSTGRES_PASSWORD=orderpass
-POSTGRES_DB=orderdb
+# RabbitMQ Configuration
+RABBITMQ_USER=admin
+RABBITMQ_PASS=admin123
+
+# Database URLs (mỗi service có database riêng)
+# Auth Service
+DATABASE_URL=postgresql://authuser:authpass@postgres-auth:5432/auth_db
+
+# Customer Service
+DATABASE_URL=postgresql://customeruser:customerpass@postgres-customer:5432/customer_db
+
+# Product Service
+DATABASE_URL=postgresql://productuser:productpass@postgres-product:5432/product_db
+
+# Cart Service
+DATABASE_URL=postgresql://cartuser:cartpass@postgres-cart:5432/cart_db
+
+# Order Service
+DATABASE_URL=postgresql://orderuser:orderpass@postgres-order:5432/order_db
 ```
 
 ### Frontend
@@ -313,14 +376,36 @@ VITE_API_BASE=http://localhost:8080
 
 ### Database connection issues
 ```bash
-# Check if PostgreSQL is running
-docker-compose ps postgres
+# Check if all PostgreSQL databases are running
+docker-compose ps | grep postgres
 
-# View PostgreSQL logs
-docker-compose logs postgres
+# View specific database logs
+docker-compose logs postgres-auth
+docker-compose logs postgres-product
+docker-compose logs postgres-cart
+docker-compose logs postgres-order
+docker-compose logs postgres-customer
 
-# Restart PostgreSQL
-docker-compose restart postgres
+# Restart specific database
+docker-compose restart postgres-auth
+
+# Restart all databases
+docker-compose restart postgres-auth postgres-customer postgres-product postgres-cart postgres-order
+```
+
+### RabbitMQ issues
+```bash
+# Check RabbitMQ status
+docker-compose ps rabbitmq
+
+# View RabbitMQ logs
+docker-compose logs rabbitmq
+
+# Access RabbitMQ Management UI
+# http://localhost:15672 (admin/admin123)
+
+# Restart RabbitMQ
+docker-compose restart rabbitmq
 ```
 
 ### Service not responding
@@ -373,6 +458,17 @@ curl -X POST http://localhost:8080/ordering \
   }'
 ```
 
+## Microservices Patterns Implemented
+
+**Database per Service** - Mỗi service có database riêng  
+**API Gateway** - Nginx reverse proxy  
+**Service Discovery** - Docker DNS  
+**Event-Driven Architecture** - RabbitMQ message broker  
+**Orchestration Pattern** - Make Order Service  
+**Micro-Frontends** - UI độc lập cho mỗi service  
+**JWT Authentication** - Stateless auth  
+**Health Checks** - Database health monitoring  
+
 ## Future Enhancements
 
 - [ ] Add unit tests and integration tests
@@ -382,9 +478,11 @@ curl -X POST http://localhost:8080/ordering \
 - [ ] Add monitoring with Prometheus/Grafana
 - [ ] Implement CI/CD pipeline
 - [ ] Add API rate limiting
-- [ ] Implement message queue (RabbitMQ/Kafka)
+- [ ] Circuit Breaker pattern (Resilience4j, Hystrix)
 - [ ] Add search functionality with Elasticsearch
 - [ ] Implement file upload for product images
+- [ ] Service mesh (Istio, Linkerd)
+- [ ] Distributed tracing (Jaeger, Zipkin)
 
 ## License
 
