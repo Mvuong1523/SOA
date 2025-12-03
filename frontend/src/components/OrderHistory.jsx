@@ -19,7 +19,20 @@ export default function OrderHistory({ apiBase, token, isAdmin, customerId }) {
         ordersList = ordersList.filter(order => order.customer_id === customerId)
       }
       
-      setOrders(ordersList)
+      // Fetch customer info for each order
+      const ordersWithCustomerInfo = await Promise.all(
+        ordersList.map(async (order) => {
+          try {
+            const customerRes = await axios.get(`${apiBase}/customers/${order.customer_id}`)
+            return { ...order, customerInfo: customerRes.data }
+          } catch (error) {
+            console.error(`Failed to fetch customer ${order.customer_id}:`, error)
+            return { ...order, customerInfo: null }
+          }
+        })
+      )
+      
+      setOrders(ordersWithCustomerInfo)
     } catch (error) {
       console.error('Failed to fetch orders:', error)
     } finally {
@@ -93,10 +106,31 @@ export default function OrderHistory({ apiBase, token, isAdmin, customerId }) {
                 <h3 className="text-lg font-semibold text-gray-800">
                   Order #{order.id}
                 </h3>
-                <p className="text-sm text-gray-600">Customer: {order.customer_id}</p>
-                <p className="text-sm text-gray-600">Payment: {order.payment_method}</p>
+                {order.customerInfo ? (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Customer:</span> {order.customerInfo.name}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Email:</span> {order.customerInfo.email}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Phone:</span> {order.customerInfo.phone || 'N/A'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Address:</span> {order.customerInfo.address || 'N/A'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600">Customer: {order.customer_id}</p>
+                )}
+                <p className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">Payment:</span> {order.payment_method}
+                </p>
                 {order.note && (
-                  <p className="text-sm text-gray-600 mt-1">Note: {order.note}</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    <span className="font-medium">Note:</span> {order.note}
+                  </p>
                 )}
               </div>
               <div className="text-right">
@@ -117,7 +151,7 @@ export default function OrderHistory({ apiBase, token, isAdmin, customerId }) {
                 {order.items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <span className="text-gray-600">
-                      Product #{item.product_id} × {item.quantity}
+                      {item.product_name || `Product #${item.product_id}`} × {item.quantity}
                     </span>
                     <span className="font-medium">
                       ${(parseFloat(item.price) * item.quantity).toFixed(2)}

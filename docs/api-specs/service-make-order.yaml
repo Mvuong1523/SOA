@@ -7,7 +7,7 @@ info:
 paths:
   /ordering:
     post:
-      summary: Place an order
+      summary: Place an order (with Circuit Breaker)
       description: |
         Orchestrates the complete order placement process:
         1. Validate JWT token
@@ -18,6 +18,8 @@ paths:
         6. Send notification
         7. Clear shopping cart
         8. Process payment
+        
+        Circuit Breaker: Tỷ lệ lỗi >= 50% trong 10 requests → Circuit OPEN
       security:
         - bearerAuth: []
       requestBody:
@@ -46,6 +48,8 @@ paths:
           description: Unauthorized (invalid token or customer mismatch)
         '404':
           description: Customer or product not found
+        '503':
+          description: Circuit breaker open - Service temporarily unavailable
 
   /health:
     get:

@@ -3,7 +3,7 @@ info:
   title: Cart and Order Flow API
   version: 1.0.0
 paths:
-  /cart:
+  /customers/{customer_id}/cart:
     get:
       summary: Lấy danh sách sản phẩm trong giỏ hàng
       responses:
@@ -22,10 +22,15 @@ paths:
         '201':
           description: Đã thêm vào giỏ
 
-  /cart/{productId}:
+  /customers/{customer_id}/cart/{productId}:
     delete:
       summary: Xóa sản phẩm khỏi giỏ hàng
       parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
         - name: productId
           in: path
           required: true
@@ -35,7 +40,7 @@ paths:
         '200':
           description: Đã xóa
 
-  /cart/checkout:
+  /ordering:
     post:
       summary: Bắt đầu quy trình đặt hàng
       description: Gồm kiểm tra người dùng, kiểm tra sản phẩm, lưu đơn, gửi email...

@@ -64,12 +64,13 @@
   - Không có phụ thuộc bên ngoài khác (ví dụ: API bên thứ ba).
 
 ## Diagram
-Hình minh họa kiến trúc hệ thống được lưu tại `docs/assets/architecture.png`:
+Hình minh họa kiến trúc hệ thống:
 
-![](assets/architecture.png)
+![Architecture Diagram](assets/architecture.jpeg)
 
-Hình minh họa Cơ sở dữ liệu hệ thống được lưu tại `docs/assets/CSDL.png`:
-![](assets/CSDL.png)
+Hình minh họa Cơ sở dữ liệu hệ thống:
+
+![Database Diagram](assets/CSDL.jpg)
 
 ## Scalability & Fault Tolerance
 - **Khả năng mở rộng**:

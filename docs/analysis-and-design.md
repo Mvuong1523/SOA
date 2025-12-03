@@ -29,8 +29,7 @@ Quy trình đặt hằng bao gồm các hoạt động chi tiết sau:
         - Số lượng tồn kho không đủ -> Thông báo kho chỉ còn xx và yêu cầu chọn lại số lượng đặt hàng.
 - Tạo và lưu bản ghi order vào database, cập nhập lại số lượng sản phẩm còn trong kho, xóa sản phẩm khỏi giỏ hàng, gửi email thông báo thành công đến khách hàng.
 
-// TODO: flowchart
-![](assets/Flow_Chart.png)
+![Flow Chart](assets/Flow_Chart.jpg)
 
 Quy trình nghiệp vụ của usecase đặt hàng bao gồm các nghiệp vụ sau
 - Bắt đầu quy trình đặt hàng
@@ -85,8 +84,7 @@ Các hành động bất khả tri được phân loại thành Entity Service:
 - **Order service**: Tạo order khi thông tin hợp lệ: `(POST /order)`
 - **Product service**: Cung cấp thông tin sản phẩm, cập nhập inventory sản phẩm. `(GET /product/{id}, PUT /product/{id})`
 
-// TODO: Image entity service candicate
-![](assets/entity-service-candidates.png)
+![Entity Service Candidates](assets/entity-service-candidates.jpeg)
 ## **Step 4: Identify Process-Specific Logic**
 
 Bước này được đề ra để xác định Task service. Các hành động không tuân theo bất khả tri vì chúng được quy định cụ thể cho quy tình đặt hàng:
@@ -105,9 +103,7 @@ Hành động đầu tiên (1) trong danh sách này tạo thành một cơ sở
 Các hành động còn lại không tương ứng với các ứng viên năng lực dịch vụ. Thay vào đó chúng được xác định là logic xảy ra nội bộ trong **MakeOrder-Service**.
 Hành động xác minh token JWT được tách ra thành **Auth-Service** trong tầng microservice để tập trung hóa logic xác thực.
 
-// TODO: Image Task serivce
-
-![](assets/task-servcie.png)
+![Task Service](assets/task-service.jpeg)
 
 
 ## **Step 5: Identify Resources**
@@ -160,7 +156,7 @@ Link service capability candidates
 
 ## **Step 8: Identify Service Composition Candidates**
 
-![alt text](assets/composite-service-candidates.png)
+![Composite Service Candidates](assets/composite-service-candidates.jpeg)
 
 ## **Step 9: Analyze Processing Requirements**
 - Hành động xác minh thông tin người dùng và sản phẩm, kiểm tra tồn kho và token JWT được thực hiện trong **Make-Order Serivce** thông qua gọi **User Service**, **Cart Service** và **Produc Service**.
@@ -168,7 +164,7 @@ Link service capability candidates
 ## **Step 10: Define Utility Service Candidates (and Associate Resources and Methods)**
 - Ứng viên dịch vụ Notification: Hành động Send Email là một ứng viên năng lực dịch vụ, như một phần của dịch vụ tiện ích có tên là Notification. Hành động Send Email sẽ chấp nhận phạm vi giá trị đầu vào, cho phép nó gửi email.
 - Ứng viên dịch vụ Notification: Hành động send được mở rộng phương thức `POST /Notification/` và tài nguyên /Notification/
-![alt text](assets/utility-candidates.png)
+![Utility Service Candidates](assets/utility-candidates.jpeg)
 
 ## **Step 11: Define Microservice Candidates (and Associate Resources and Methods)**
 - Auth-Service: Hành động validate với phương thức `GET /validate-token`.
@@ -178,6 +174,6 @@ Link service capability candidates
 - Step 13: Revise Candidate Service Compositions
 - Step 14: Revise Resource Definitions and Capability Candidate grouping
 
-![alt text](assets/service-composition.png)
+![Service Composition](assets/service-composition.jpg)
 
 

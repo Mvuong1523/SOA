@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import Login from './components/Login'
+import Navbar from './components/Navbar'
+import AdminDashboard from './components/AdminDashboard'
 import ProductList from './components/ProductList'
 import Cart from './components/Cart'
 import OrderHistory from './components/OrderHistory'
@@ -28,7 +30,7 @@ function App() {
       const response = await axios.get(`${API_BASE}/auth/validate`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setUser(response.data)
+      setUser({ ...response.data, username: localStorage.getItem('username') || 'User' })
     } catch (error) {
       console.error('Token validation failed:', error)
       handleLogout()
@@ -44,11 +46,14 @@ function App() {
     }
   }
 
-  const handleLogin = (newToken, newCustomerId) => {
+  const handleLogin = (newToken, newCustomerId, username, role) => {
     setToken(newToken)
     setCustomerId(newCustomerId)
     localStorage.setItem('token', newToken)
     localStorage.setItem('customerId', newCustomerId)
+    localStorage.setItem('username', username)
+    localStorage.setItem('role', role)
+    setUser({ customer_id: newCustomerId, role, username })
   }
 
   const handleLogout = () => {
@@ -56,101 +61,132 @@ function App() {
     setUser(null)
     setCustomerId(null)
     setCart([])
+    setActiveTab('products')
     localStorage.removeItem('token')
     localStorage.removeItem('customerId')
+    localStorage.removeItem('username')
+    localStorage.removeItem('role')
   }
 
   if (!token) {
     return <Login onLogin={handleLogin} apiBase={API_BASE} />
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Online Ordering System</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {user?.role === 'admin' ? '👑 Admin' : '👤 Customer'} ({customerId})
-              </span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+  const isAdmin = user?.role === 'admin'
 
-      {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`${
-                activeTab === 'products'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition`}
-            >
-              {user?.role === 'admin' ? 'Product Management' : 'Products'}
-            </button>
-            {user?.role !== 'admin' && (
-              <button
-                onClick={() => setActiveTab('cart')}
-                className={`${
-                  activeTab === 'cart'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition relative`}
-              >
-                Cart
-                {cart.length > 0 && (
-                  <span className="ml-2 bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs">
-                    {cart.length}
-                  </span>
-                )}
-              </button>
-            )}
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`${
-                activeTab === 'orders'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition`}
-            >
-              {user?.role === 'admin' ? 'Order Management' : 'My Orders'}
-            </button>
-          </nav>
-        </div>
-      </div>
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <Navbar 
+        user={user}
+        onLogout={handleLogout}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        cartCount={cart.length}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'products' && (
-          <ProductList
-            apiBase={API_BASE}
-            token={token}
-            customerId={customerId}
-            onCartUpdate={fetchCart}
-            isAdmin={user?.role === 'admin'}
-            userRole={user?.role}
-          />
+        {/* Admin Dashboard */}
+        {isAdmin && activeTab === 'dashboard' && (
+          <AdminDashboard apiBase={API_BASE} token={token} />
         )}
-        {activeTab === 'cart' && user?.role !== 'admin' && (
-          <Cart
-            apiBase={API_BASE}
-            token={token}
-            customerId={customerId}
-            cart={cart}
-            onCartUpdate={fetchCart}
-          />
+
+        {/* Products */}
+        {activeTab === 'products' && (
+          <>
+            {isAdmin && (
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Product Management</h2>
+                <p className="text-gray-600">Manage your store inventory</p>
+              </div>
+            )}
+            <ProductList
+              apiBase={API_BASE}
+              token={token}
+              customerId={customerId}
+              onCartUpdate={fetchCart}
+              isAdmin={isAdmin}
+              userRole={user?.role}
+            />
+          </>
+        )}
+
+        {/* Cart */}
+        {activeTab === 'cart' && !isAdmin && (
+          <>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Shopping Cart</h2>
+              <p className="text-gray-600">Review your items before checkout</p>
+            </div>
+            <Cart
+              apiBase={API_BASE}
+              token={token}
+              customerId={customerId}
+              cart={cart}
+              onCartUpdate={fetchCart}
+            />
+          </>
+        )}
+
+        {/* Orders */}
+        {activeTab === 'orders' && (
+          <>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {isAdmin ? 'Order Management' : 'My Orders'}
+              </h2>
+              <p className="text-gray-600">
+                {isAdmin ? 'Manage all customer orders' : 'Track your order history'}
+              </p>
+            </div>
+            <OrderHistory
+              apiBase={API_BASE}
+              token={token}
+              isAdmin={isAdmin}
+              customerId={customerId}
+            />
+          </>
+        )}
+
+        {/* Customers (Admin only) */}
+        {isAdmin && activeTab === 'customers' && (
+          <div className="bg-white rounded-xl shadow-md p-8 text-center">
+            <span className="text-6xl mb-4 block">👥</span>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Customer Management</h3>
+            <p className="text-gray-600">Coming soon...</p>
+          </div>
+        )}
+
+        {/* Profile */}
+        {activeTab === 'profile' && (
+          <div className="bg-white rounded-xl shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Profile</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Username</label>
+                <p className="text-lg text-gray-800">{user?.username}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Role</label>
+                <p className="text-lg text-gray-800 capitalize">{user?.role}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Customer ID</label>
+                <p className="text-lg text-gray-800">{customerId}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings */}
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-xl shadow-md p-8 text-center">
+            <span className="text-6xl mb-4 block">⚙️</span>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Settings</h3>
+            <p className="text-gray-600">Coming soon...</p>
+          </div>
+        )}
         )}
         {activeTab === 'orders' && (
           <OrderHistory

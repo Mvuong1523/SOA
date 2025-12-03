@@ -20,12 +20,12 @@ export default function Login({ onLogin, apiBase }) {
       
       const token = response.data.access_token
       
-      // Validate token to get customer_id
+      // Validate token to get customer_id and role
       const validateResponse = await axios.get(`${apiBase}/auth/validate`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       
-      onLogin(token, validateResponse.data.customer_id)
+      onLogin(token, validateResponse.data.customer_id, username, validateResponse.data.role)
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed')
     } finally {
