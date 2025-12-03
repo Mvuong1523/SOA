@@ -220,85 +220,11 @@ Việc cấu hình các tham số này phụ thuộc vào đặc điểm của t
 
 ### 4.1. Netflix Hystrix Library
 
-Netflix Hystrix là một thư viện mã nguồn mở (open source) triển khai Circuit Breaker pattern và các pattern liên quan khác. Hystrix được phát triển bởi Netflix dựa trên kinh nghiệm vận hành hệ thống microservices quy mô lớn với hàng triệu request mỗi giây.
+Netflix Hystrix là một thư viện mã nguồn mở triển khai Circuit Breaker pattern và các pattern liên quan. Nếu đang sử dụng JVM, nên cân nhắc sử dụng Hystrix khi triển khai RPI proxies.
 
-**Vai trò của Hystrix:**
-- Cung cấp implementation sẵn có của Circuit Breaker pattern
-- Tích hợp ba cơ chế bảo vệ: timeouts, request limiting, và circuit breaking
-- Cung cấp monitoring và metrics để theo dõi health của services
-- Hỗ trợ fallback mechanisms và graceful degradation
+### 4.2. Alternative Libraries
 
-**Khuyến nghị sử dụng:**
-Nếu đang sử dụng JVM (Java Virtual Machine), nên cân nhắc sử dụng Hystrix khi triển khai RPI proxies. Hystrix đã được kiểm chứng trong môi trường production với traffic cao và cung cấp các tính năng mạnh mẽ out-of-the-box.
-
-### 4.2. Triển Khai trên JVM
-
-**Ưu điểm của Hystrix trên JVM:**
-- Tích hợp tốt với Spring Framework và các framework Java phổ biến
-- Thread pool isolation để cách ly lỗi
-- Semaphore isolation cho lightweight protection
-- Real-time monitoring dashboard
-- Configuration động không cần restart
-
-**Cách sử dụng cơ bản:**
-Hystrix wrap các remote service call trong HystrixCommand hoặc HystrixObservableCommand. Mỗi command có thể được cấu hình với:
-- Timeout values
-- Thread pool size
-- Circuit breaker thresholds
-- Fallback logic
-
-### 4.3. Alternative Libraries cho Non-JVM Environments
-
-Nếu không sử dụng JVM, cần sử dụng thư viện tương đương trong ngôn ngữ/platform tương ứng.
-
-**Polly Library (.NET Community):**
-- Thư viện phổ biến trong cộng đồng .NET
-- Cung cấp Circuit Breaker, Retry, Timeout policies
-- Hỗ trợ async/await pattern của C#
-- Flexible policy configuration
-
-**Các thư viện khác:**
-- **Python:** pybreaker, circuitbreaker
-- **Node.js:** opossum, brakes
-- **Go:** gobreaker, hystrix-go
-- **Ruby:** circuitbox
-
-### 4.4. Cấu Hình Parameters
-
-Việc cấu hình đúng các tham số là then chốt để Circuit Breaker hoạt động hiệu quả:
-
-#### **Timeout Configuration**
-- **Request Timeout:** Thời gian tối đa chờ phản hồi từ service
-  - Quá ngắn: Nhiều false positive, reject request hợp lệ
-  - Quá dài: Tài nguyên bị chiếm giữ lâu, chậm phát hiện lỗi
-  - Khuyến nghị: Dựa trên P99 latency của service trong điều kiện bình thường
-
-- **Circuit Breaker Timeout:** Thời gian ở trạng thái OPEN trước khi thử lại
-  - Quá ngắn: Không đủ thời gian cho service phục hồi
-  - Quá dài: Service đã phục hồi nhưng vẫn bị reject
-  - Khuyến nghị: 10-60 giây tùy theo đặc điểm service
-
-#### **Threshold Configuration**
-- **Error Threshold:** Số lỗi hoặc tỷ lệ lỗi để trip circuit
-  - Có thể là số tuyệt đối (ví dụ: 5 lỗi liên tiếp)
-  - Hoặc tỷ lệ phần trăm (ví dụ: 50% request lỗi trong 10 giây)
-  - Khuyến nghị: Cân bằng giữa sensitivity và stability
-
-- **Volume Threshold:** Số request tối thiểu trước khi tính toán error rate
-  - Tránh trip circuit breaker khi traffic thấp
-  - Ví dụ: Cần ít nhất 20 request trong window trước khi đánh giá
-
-#### **Request Limiting**
-- **Max Concurrent Requests:** Giới hạn số request đồng thời
-  - Bảo vệ client khỏi resource exhaustion
-  - Ví dụ: 100-1000 concurrent requests tùy theo capacity
-
-### 4.5. Best Practices
-
-1. **Monitoring và Alerting:** Theo dõi trạng thái circuit breaker và alert khi trip
-2. **Gradual Rollout:** Test cấu hình với traffic nhỏ trước khi áp dụng toàn bộ
-3. **Service-Specific Configuration:** Mỗi service có đặc điểm khác nhau, cần cấu hình riêng
-4. **Regular Review:** Định kỳ review và điều chỉnh parameters dựa trên metrics thực tế
+Nếu không sử dụng JVM, cần sử dụng thư viện tương đương. Ví dụ, thư viện Polly phổ biến trong cộng đồng .NET.
 
 
 ## 5. CHIẾN LƯỢC PHỤC HỒI TỪ SERVICE KHÔNG KHẢ DỤ
@@ -468,42 +394,9 @@ Circuit Breaker pattern là một giải pháp thiết kế quan trọng và c�
 4. **Tự động phục hồi:** Tự động thử kết nối lại khi service phục hồi
 5. **Graceful degradation:** Hệ thống tiếp tục hoạt động với chức năng giảm
 
-### 6.3. Tầm Quan Trọng trong Microservices
-
-Trong kiến trúc microservices, nơi các service phụ thuộc lẫn nhau qua network, Circuit Breaker pattern không phải là optional mà là essential. Nó là một phần không thể thiếu của chiến lược fault tolerance và resilience engineering.
-
-Việc thiết kế hệ thống với Circuit Breaker pattern từ đầu giúp:
-- Tăng availability và reliability của hệ thống
-- Giảm thiểu impact của failures
-- Dễ dàng scale và maintain
-- Cải thiện observability thông qua metrics và monitoring
-
-Circuit Breaker pattern, kết hợp với các pattern khác như Retry, Timeout, và Bulkhead, tạo nên một hệ thống microservices robust và resilient, có khả năng xử lý failures một cách graceful và tự động phục hồi.
 
 
 ## 7. TÀI LIỆU THAM KHẢO
 
-1. **Microservices Patterns: With examples in Java** - Chapter 3: Interprocess communication in a microservice architecture
-   - Section: "Handling partial failure using the Circuit breaker pattern"
-   - Pages 78-80
-
-2. **Netflix Tech Blog** - "Fault Tolerance in a High Volume, Distributed System"
-   - URL: http://techblog.netflix.com/2012/02/fault-tolerance-in-high-volume.html
-   - Mô tả approach của Netflix trong việc xử lý fault tolerance
-
-3. **Microservices.io** - Circuit Breaker Pattern
-   - URL: http://microservices.io/patterns/reliability/circuit-breaker.html
-   - Pattern catalog và best practices
-
-4. **Netflix Hystrix** - Open Source Library
-   - GitHub: https://github.com/Netflix/Hystrix
-   - Circuit breaker implementation cho JVM
-
-5. **Polly** - .NET Resilience Library
-   - GitHub: https://github.com/App-vNext/Polly
-   - Circuit breaker implementation cho .NET
-
----
-
-**Ghi chú:** Báo cáo này được viết dựa hoàn toàn trên nội dung từ sách "Microservices Patterns: With examples in Java", Chapter 3, và các tài liệu tham khảo được trích dẫn trong sách.
+**Microservices Patterns: With examples in Java**
 
